@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAD Checker-Steganography Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050505;--bg2:#121212;--bg3:#1a1a1a;
+  --card:rgba(18,18,18,0.45);--card-hover:rgba(25,25,25,0.65);
+  --blue1:#333333;--blue2:#555555;--blue3:#c0c0c0;--blue4:#e0e0e0;
+  --cyan:#ffffff;--text:#d1d1d1;--text2:#a0a0a0;
+  --ok:#4caf50;--warn:#ff9800;--danger:#ef5350;
+  --glow:0 0 30px rgba(192,192,192,0.1);
+  --border:rgba(192,192,192,0.15);
+  --radius:12px;
+}
+body{
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  background:transparent; /* Changed to transparent so spline at z-index:0 is visible */
+  color:var(--text);
+  min-height:100vh;overflow-x:hidden;
+  position: relative;
+}
+/* This is the background layer that houses the 3D model */
+.spline-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: auto; /* Allow mouse interaction with the 3D particles */
+  background: var(--bg); /* Keep the dark theme color behind the spline */
+  overflow: hidden;
+}
+.spline-bg iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  transform: scale(2.0); /* Increased zoom for more efficiency */
+  transform-origin: center middle;
+}
+/* Ensure all main UI segments are stacked above the background and interactive */
+.header, .mode-toggle, .url-input-wrap, .upload-wrap, .progress-wrap, .tabs-wrap, .lightbox, #resultsWrap, #batchResultWrap, .footer-note {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--blue1);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--blue2)}
+
+.header{
+  padding:32px 40px 24px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(50,50,50,0.15),rgba(10,10,10,0.05),transparent);
+  backdrop-filter: blur(4px);
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.header::before{
+  content:'';
+  position:absolute;
+  top:-50%;left:-50%;width:200%;height:200%;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,0.04) 0%,transparent 70%);
+  animation:headerGlow 14s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes headerGlow{
+  0%,100%{opacity:0;transform:scale(0.8)}
+  50%{opacity:0.8;transform:scale(1.2)}
+}
+.logo-row{display:flex;align-items:center;gap:14px;justify-content:center}
+.logo{
+  width:52px;height:52px;border-radius:14px;
+  flex-shrink:0;
+  background:var(--bg2);
+  border:1px solid rgba(255,255,255,0.05);
+  overflow:hidden;
+}
+.logo img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+.title-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  position:relative;
+  margin-bottom:8px;
+}
+.header h1{
+  font-family:'Orbitron',sans-serif;
+  font-size:46px;font-weight:900;letter-spacing:8px;
+  text-transform:uppercase;
+  color:#fff;
+  line-height:1.1;
+  text-shadow:
+    0 0  5px #fff,
+    0 0  8px #fff,
+    0 0 15px #fff,
+    0 0 30px #c0c0c0,
+    0 0 60px #888,
+    0 0 70px #444;
+  animation: glowPulse 12s ease-in-out infinite;
+}
+.header h1 .accent{
+  color:#ffffff;
+  animation: glowColor 14s ease-in-out infinite;
+}
+.title-reflection{
+  font-family:'Orbitron',sans-serif;
+  font-size:46px;font-weight:900;letter-spacing:8px;
+  text-transform:uppercase;
+  line-height:1.1;
+  color:rgba(255,255,255,0.15);
+  transform:scaleY(-1);
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,0.4) 0%,transparent 75%);
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,0.4) 0%,transparent 75%);
+  pointer-events:none;
+  user-select:none;
+  margin-top:-2px;
+  text-shadow:
+    0 0 4px rgba(255,255,255,0.1),
+    0 0 10px rgba(100,100,100,0.1);
+  filter:blur(1px);
+  animation: reflectionPulse 12s ease-in-out infinite;
+}
+@keyframes reflectionPulse{
+  0%,100%{ opacity:0; filter: blur(3px); }
+  50%{ opacity:0.6; filter: blur(1px); }
+}
+@keyframes glowPulse{
+  0%,100%{
+    text-shadow: none;
+    filter:brightness(0.7);
+  }
+  50%{
+    text-shadow:
+      0 0  5px #fff,
+      0 0  15px #fff,
+      0 0  30px #fff,
+      0 0  50px #c0c0c0,
+      0 0  90px #888,
+      0 0 130px #444;
+    filter:brightness(1.3);
+  }
+}
+@keyframes glowColor{
+  0%,100%{ color:#ffffff; }
+  33%{ color:#e0e0e0; }
+  50%{ color:#c0c0c0; }
+  66%{ color:#a0a0a0; }
+}
+.header .subtitle{
+  font-family:'Orbitron',sans-serif;
+  font-size:11px;color:var(--text2);margin-top:18px;letter-spacing:3px;
+  text-transform:uppercase;
+}
+
+.upload-wrap{padding:30px 40px}
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);
+  padding:48px 30px;text-align:center;cursor:pointer;
+  transition:all .35s ease;position:relative;overflow:hidden;
+  background:transparent; /* Totally transparent to see spline model */
+  backdrop-filter: none; /* Removed blur for maximum visibility */
+}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 50%,rgba(200,200,200,0.05),transparent 70%);
+  opacity:0;transition:opacity .35s;
+}
+.upload-zone:hover,.upload-zone.over{
+  border-color:var(--blue3);background:var(--card-hover);
+  box-shadow:var(--glow);
+}
+.upload-zone:hover::before,.upload-zone.over::before{opacity:1}
+.upload-icon{font-size:42px;margin-bottom:12px;display:block;opacity:.7}
+.upload-zone h3{color:#fff;font-size:16px;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:var(--text2)}
+.file-input-hidden{
+  position:fixed;width:0;height:0;opacity:0;
+  overflow:hidden;top:-100px;left:-100px;
+}
+.browse-btn{
+  display:inline-block;margin-top:14px;padding:9px 28px;
+  background:linear-gradient(135deg, #0a0a0a, #333333);
+  color:#ffffff;border:1px solid #444;border-radius:8px;font-size:13px;
+  font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s;
+  position:relative;z-index:2;
+}
+.browse-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,0.5), 0 0 10px rgba(255,255,255,0.1)}
+
+.progress-wrap{padding:0 40px;display:none}
+.progress-wrap.active{display:block}
+.progress-bar-track{
+  height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:8px;
+}
+.progress-bar-fill{
+  height:100%;width:0;border-radius:4px;
+  background:linear-gradient(90deg,var(--blue1),var(--blue2),var(--blue3));
+  transition:width .4s ease;
+}
+.progress-status{font-size:12px;color:var(--text2)}
+
+.tabs-wrap{padding:0 40px;display:none}
+.tabs-wrap.active{display:block}
+.tabs-nav{
+  display:flex;gap:2px;border-bottom:1px solid var(--border);
+  overflow-x:auto;padding-bottom:0;
+}
+.tab-btn{
+  padding:11px 20px;font-size:13px;font-weight:500;
+  background:transparent;border:none;color:var(--text2);
+  cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;
+  transition:all .25s;position:relative;
+}
+.tab-btn:hover{color:var(--blue3)}
+.tab-btn.active{color:var(--blue3);border-bottom-color:var(--blue3)}
+.tab-content{display:none;padding:24px 0}
+.tab-content.active{display:block}
+
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;margin-bottom:16px;
+  backdrop-filter:blur(12px);
+}
+.card h3{
+  font-size:14px;font-weight:600;color:var(--blue3);
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.card h3 .dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.dot-ok{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.dot-warn{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.dot-danger{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+.dot-info{background:var(--blue3);box-shadow:0 0 6px var(--blue3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+.data-block{
+  background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px;padding:14px 16px;
+  max-height:350px;overflow-y:auto;
+  font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  font-size:11.5px;line-height:1.7;white-space:pre-wrap;
+  word-break:break-all;color:var(--text2);
+}
+.data-block .hl{color:var(--blue3)}
+.data-block .ok{color:var(--ok)}
+.data-block .warn{color:var(--warn)}
+.data-block .danger{color:var(--danger)}
+
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--text2);font-size:12px}
+.kv .v{color:#fff;font-size:12px;font-weight:500;text-align:right}
+
+.plane-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.plane-cell{text-align:center}
+.plane-cell canvas{
+  width:100%;aspect-ratio:1;object-fit:contain;border-radius:6px;
+  border:1px solid var(--border);background:#000;cursor:pointer;
+  transition:border-color .2s,box-shadow .2s;
+}
+.plane-cell canvas:hover{border-color:var(--blue3);box-shadow:var(--glow)}
+.plane-cell .label{font-size:10px;color:var(--text2);margin-top:4px}
+
+.channel-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
+.ch-card{flex:0 0 180px;text-align:center}
+.ch-card canvas{
+  width:100%;border-radius:6px;border:1px solid var(--border);background:#000;
+}
+.ch-card .label{font-size:11px;color:var(--text2);margin-top:4px}
+
+.hist-canvas{width:100%;height:180px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.5)}
+
+.finding-item{
+  display:flex;gap:10px;padding:10px 14px;
+  border-radius:8px;margin-bottom:6px;align-items:flex-start;
+  font-size:12px;line-height:1.5;
+}
+.finding-item.high{background:rgba(239,83,80,0.1);border-left:3px solid var(--danger)}
+.finding-item.medium{background:rgba(255,152,0,0.08);border-left:3px solid var(--warn)}
+.finding-item.low{background:rgba(200,200,200,0.06);border-left:3px solid var(--blue2)}
+.finding-item.clean{background:rgba(76,175,80,0.06);border-left:3px solid var(--ok)}
+.finding-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.finding-text strong{color:#fff;display:block;margin-bottom:2px}
+
+.lightbox{
+  position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:999;
+  display:none;place-items:center;cursor:zoom-out;
+  backdrop-filter:blur(6px);
+}
+.lightbox.open{display:grid}
+.lightbox canvas{max-width:90vw;max-height:90vh;border-radius:8px;border:1px solid var(--border)}
+
+.ctrl-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.ctrl-label{font-size:12px;color:var(--text2);margin-right:4px}
+select,button.ctrl-btn{
+  padding:6px 14px;border-radius:6px;font-size:12px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);cursor:pointer;transition:all .2s;
+}
+select:hover,button.ctrl-btn:hover{border-color:var(--blue3)}
+button.ctrl-btn.primary{background:linear-gradient(135deg, #0a0a0a, #444);border-color:#555;color:#fff}
+
+.score-ring{
+  width:110px;height:110px;border-radius:50%;
+  display:grid;place-items:center;margin:0 auto 10px;
+  position:relative;
+}
+.score-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.score-ring .val{font-size:28px;font-weight:700;color:#fff}
+
+.preview-img{
+  max-width:280px;max-height:200px;border-radius:8px;
+  border:1px solid var(--border);display:block;
+}
+
+/* ── BATCH HEATMAP ── */
+.heatmap-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(12px, 1fr));
+  gap:2px;
+  background:var(--bg3);padding:10px;border-radius:8px;
+  max-height:500px;overflow-y:auto;
+}
+.hm-cell{
+  aspect-ratio:1;border-radius:1px;
+  cursor:pointer;transition:transform 0.1s;
+}
+.hm-cell:hover{transform:scale(2);z-index:10;box-shadow:0 0 10px #000}
+.hm-legend{display:flex;gap:15px;margin-bottom:10px;font-size:11px;color:var(--text2)}
+.hm-item{display:flex;align-items:center;gap:5px}
+.hm-box{width:12px;height:12px;border-radius:2px}
+
+/* ── ADVANCED METRICS ── */
+.immunity-meter{
+    height:12px; border-radius:6px; background:var(--bg3);
+    position:relative; overflow:hidden; margin:10px 0;
+}
+.immunity-fill{
+    height:100%; transition:width 1s ease;
+}
+.tag-pill{
+    display:inline-block; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:bold; margin-right:5px;
+}
+.url-input-wrap{
+    display:flex; gap:10px; margin:24px 40px;
+}
+.url-input{
+    flex:1; background:transparent; border:1px solid #333;
+    padding:10px 15px; border-radius:8px; color:#fff; font-size:13px;
+    backdrop-filter: none; /* Totally transparent to see spline model */
+    transition: all 0.3s ease;
+}
+.url-input::placeholder{
+    color: #666;
+}
+.url-input:focus{
+    outline: none;
+    border-color: #666;
+    background: rgba(255,255,255,0.03); /* Extremely subtle on focus */
+    box-shadow: 0 0 15px rgba(255,255,255,0.05);
+}
+
+.mode-toggle{
+  display:flex;background:rgba(10,10,10,0.8);padding:4px;border-radius:10px;
+  margin-top:24px;margin-bottom:0px;width:fit-content;margin-inline:auto;
+  backdrop-filter: blur(8px);
+  border: 1px solid #333;
+}
+.mode-btn{
+  padding:6px 16px;border-radius:7px;font-size:12px;font-weight:600;
+  color:var(--text2);background:transparent;border:none;cursor:pointer;
+}
+.mode-btn.active{background:linear-gradient(180deg, #444, #111); color:#fff; box-shadow: 0 2px 10px rgba(0,0,0,0.5)}
+
+.fade-in{animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="spline-bg">
+  <iframe src="https://my.spline.design/particles-ALVTe7DBbXbMfJCLJv0lda5a/"></iframe>
+</div>
+
+<header class="header">
+  <div class="title-wrap">
+    <h1> <span class="accent">I'M MAD</span></h1>
+    <div class="title-reflection" aria-hidden="true">I'M MAD</div>
+  </div>
+  <p class="subtitle">Advanced Steganography Detection &amp; Image Forensics</p>
+</header>
+
+<div class="mode-toggle">
+  <button class="mode-btn active" id="singleModeBtn">Single Image</button>
+  <button class="mode-btn" id="batchModeBtn">Batch Folder</button>
+</div>
+
+<div class="url-input-wrap">
+  <input type="text" id="urlInput" class="url-input" placeholder="Paste image source adress">
+  <button class="ctrl-btn primary" id="urlBtn">Scan URL</button>
+</div>
+
+<section class="upload-wrap" id="uploadSection">
+  <div class="upload-zone" id="dropZone">
+    <span class="upload-icon">⬡</span>
+    <h3 id="uploadTitle">Drop an image to analyze</h3>
+    <p id="uploadSub">Supports PNG, JPEG, BMP, GIF, WebP — any size</p>
+    <button class="browse-btn" id="browseBtn" type="button">Browse files</button>
+  </div>
+  <input type="file" id="fileIn" accept="image/*" class="file-input-hidden">
+  <input type="file" id="folderIn" webkitdirectory directory multiple class="file-input-hidden">
+</section>
+
+<section class="progress-wrap" id="progressWrap">
+  <div class="progress-bar-track"><div class="progress-bar-fill" id="progBar"></div></div>
+  <div class="progress-status" id="progText">Preparing…</div>
+</section>
+
+<section class="tabs-wrap" id="batchResultWrap" style="display:none; padding:0 40px">
+  <div class="card">
+    <h3><span class="dot dot-info"></span>Batch Analysis Heatmap</h3>
+    <div class="hm-legend">
+      <div class="hm-item"><div class="hm-box" style="background:var(--ok)"></div> Clean</div>
+      <div class="hm-item"><div class="hm-box" style="background:var(--warn)"></div> Suspicious</div>
+      <div class="hm-item"><div class="hm-box" style="background:var(--danger)"></div> Highly Suspicious</div>
+    </div>
+    <div class="heatmap-grid" id="hmGrid"></div>
+  </div>
+  <div id="batchStats" style="font-size:12px; color:var(--text2); margin-bottom:20px"></div>
+</section>
+
+<section class="tabs-wrap" id="resultsWrap">
+  <nav class="tabs-nav" id="tabsNav"></nav>
+  <div id="tabPanels"></div>
+</section>
+
+<div class="lightbox" id="lightbox">
+  <canvas id="lbCanvas"></canvas>
+</div>
+
+<script>
+var IMG, PIXELS, W, H, RAW, IMG_SRC, FILE_CVS, FILE_CTX, CURRENT_FILE;
+var ANALYSIS_RESULTS = { qs:"", rs:"", dist:"" };
+const findings = [];
+
+const dropZone   = document.getElementById('dropZone');
+const browseBtn  = document.getElementById('browseBtn');
+const fileIn     = document.getElementById('fileIn');
+const progWrap   = document.getElementById('progressWrap');
+const progBar    = document.getElementById('progBar');
+const progText   = document.getElementById('progText');
+const resultsWrap= document.getElementById('resultsWrap');
+const batchResultWrap = document.getElementById('batchResultWrap');
+const hmGrid      = document.getElementById('hmGrid');
+const batchStats   = document.getElementById('batchStats');
+const tabsNav    = document.getElementById('tabsNav');
+const tabPanels  = document.getElementById('tabPanels');
+const lightbox   = document.getElementById('lightbox');
+const lbCanvas   = document.getElementById('lbCanvas');
+
+let BATCH_MODE = false;
+const singleModeBtn = document.getElementById('singleModeBtn');
+const batchModeBtn  = document.getElementById('batchModeBtn');
+const folderIn      = document.getElementById('folderIn');
+const uploadTitle   = document.getElementById('uploadTitle');
+const uploadSub     = document.getElementById('uploadSub');
+const urlInput      = document.getElementById('urlInput');
+const urlBtn        = document.getElementById('urlBtn');
+
+/* ── MODE HANDLING ── */
+
+urlBtn.addEventListener('click', async () => {
+    let url = urlInput.value.trim();
+    if (!url) return;
+    
+    // Auto-fix common social media page URLs to direct image URLs if possible
+    // (This is basic; usually requires an API for full support)
+    if (url.includes('instagram.com/p/')) {
+        alert("Note: You pasted a post link, not a direct image link. I will try to fetch it, but it may fail.");
+    }
+
+    progress(5, 'Attempting to fetch image...');
+    progWrap.classList.add('active');
+
+    async function tryFetch(targetUrl) {
+        const response = await fetch(targetUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) throw new Error("URL did not point to an image.");
+        return blob;
+    }
+
+    try {
+        // Step 1: Try direct fetch
+        const blob = await tryFetch(url);
+        start(new File([blob], "image.jpg", { type: blob.type }));
+    } catch (e) {
+        console.warn("Direct fetch failed, trying CORS proxy...", e);
+        progress(10, 'CORS block detected. Retrying via proxy...');
+        
+        try {
+            // Step 2: Try via AllOrigins proxy
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+            const blob = await tryFetch(proxyUrl);
+            start(new File([blob], "image.jpg", { type: blob.type }));
+        } catch (e2) {
+            console.error("Proxy fetch failed:", e2);
+            alert("Deep Security Block: Even the proxy couldn't retrieve this. \n\nReason: " + e2.message + "\n\nBest Solution: Right-click the image -> 'Save Image As' -> Drag the file here.");
+            progWrap.classList.remove('active');
+        }
+    }
+});
+
+singleModeBtn.addEventListener('click', () => setMode(false));
+batchModeBtn.addEventListener('click', () => setMode(true));
+
+function setMode(isBatch) {
+    BATCH_MODE = isBatch;
+    singleModeBtn.classList.toggle('active', !isBatch);
+    batchModeBtn.classList.toggle('active', isBatch);
+    uploadTitle.textContent = isBatch ? 'Drop a folder to analyze' : 'Drop an image to analyze';
+    uploadSub.textContent   = isBatch ? 'Will scan all images inside for steganography' : 'Supports PNG, JPEG, BMP, GIF, WebP — any size';
+    resultsWrap.classList.remove('active');
+    batchResultWrap.style.display = 'none';
+    if (isBatch) {
+        progWrap.classList.remove('active');
+    }
+}
+
+/* ── FILE INPUT HANDLING ── */
+
+browseBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (BATCH_MODE) folderIn.click();
+    else fileIn.click();
+});
+
+dropZone.addEventListener('click', function(e) {
+    // If user clicked the button, it's already handled
+    if (e.target === browseBtn || browseBtn.contains(e.target)) return;
+    if (BATCH_MODE) folderIn.click();
+    else fileIn.click();
+});
+
+fileIn.addEventListener('change', function(e) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        start(files[0]);
+        // Reset value so the same file can be picked again
+        setTimeout(() => { fileIn.value = ''; }, 100);
+    }
+});
+
+folderIn.addEventListener('change', function(e) {
+    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+        startBatch(files);
+    }
+});
+
+dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('over');
+});
+
+dropZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('over');
+});
+
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('over');
+    
+    if (BATCH_MODE) {
+        handleBatchDrop(e.dataTransfer.items);
+    } else {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            start(files[0]);
+        }
+    }
+});
+
+async function handleBatchDrop(items) {
+    const files = [];
+    const queue = Array.from(items).map(item => item.webkitGetAsEntry());
+    
+    while (queue.length > 0) {
+        const entry = queue.shift();
+        if (!entry) continue;
+        if (entry.isFile) {
+            const file = await new Promise(res => entry.file(res));
+            if (file.type.startsWith('image/')) files.push(file);
+        } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const entries = await new Promise(res => dirReader.readEntries(res));
+            queue.push(...entries);
+        }
+    }
+    if (files.length > 0) startBatch(files);
+}
+
+lightbox.addEventListener('click', function() {
+    lightbox.classList.remove('open');
+});
+
+/* ── HELPERS ── */
+
+function readAsDataURL(file) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
+        reader.onerror = function() { reject(reader.error); };
+        reader.readAsDataURL(file);
+    });
+}
+
+function readAsArrayBuffer(file) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
+        reader.onerror = function() { reject(reader.error); };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function loadImage(src) {
+    return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() { resolve(img); };
+        img.onerror = function() { reject(new Error('Image load failed')); };
+        img.src = src;
+    });
+}
+
+function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function fmt(n) { return n.toLocaleString(); }
+
+function progress(pct, msg) {
+    progBar.style.width = pct + '%';
+    progText.textContent = msg;
+}
+
+function openLightbox(srcCanvas) {
+    lbCanvas.width  = srcCanvas.width;
+    lbCanvas.height = srcCanvas.height;
+    lbCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
+    lightbox.classList.add('open');
+}
+
+function addFinding(severity, title, detail) {
+    findings.push({ severity: severity, title: title, detail: detail });
+}
+
+/* ── MAIN PIPELINE ── */
+
+async function start(file) {
+    if (!file) return;
+    CURRENT_FILE = file;
+
+    // Check if it's an image. Be a bit more flexible with MIME types.
+    const isImage = file.type.match(/image.*/) || /\.(jpe?g|png|gif|bmp|webp)$/i.test(file.name);
+    if (!isImage) {
+        alert('Please select a valid image file (PNG, JPEG, etc.).');
+        return;
+    }
+
+    findings.length = 0;
+    progWrap.classList.add('active');
+    resultsWrap.classList.remove('active');
+    progress(5, 'Reading file: ' + file.name + '…');
+
+    try {
+        var dataURL   = await readAsDataURL(file);
+        var arrayBuf  = await readAsArrayBuffer(file);
+        IMG_SRC = dataURL;
+        RAW = new Uint8Array(arrayBuf);
+
+        progress(15, 'Decoding image pixels…');
+        IMG = await loadImage(dataURL);
+
+        var cvs = document.createElement('canvas');
+        cvs.width  = IMG.width;
+        cvs.height = IMG.height;
+        var ctx = cvs.getContext('2d');
+        ctx.drawImage(IMG, 0, 0);
+        var id = ctx.getImageData(0, 0, IMG.width, IMG.height);
+        PIXELS = id.data;
+        W = IMG.width;
+        H = IMG.height;
+        FILE_CVS = cvs;
+        FILE_CTX = ctx;
+
+        progress(20, 'Running analysis pipeline…');
+        await sleep(60);
+
+        var overviewHTML = buildOverview(file);
+        
+        progress(25, 'Quick Scan…');
+        ANALYSIS_RESULTS.qs = quickScan(); 
+        await sleep(30);
+
+        progress(30, 'RS Steganalysis…');
+        ANALYSIS_RESULTS.rs = rsAnalysis();
+        await sleep(30);
+
+        progress(35, 'Distribution Analysis…');
+        ANALYSIS_RESULTS.dist = distributionAnalysis();
+        await sleep(30);
+
+        var tabs = [];
+
+        progress(40, 'Building tabs…');
+        tabs.push({ id:'overview', label:'Overview', icon:'◈', html: overviewHTML });
+        await sleep(30);
+
+        progress(35, 'Extracting bit planes…');
+        tabs.push({ id:'bitplanes', label:'Bit Planes', icon:'▦', html: buildBitPlanes() });
+        await sleep(30);
+
+        progress(45, 'Separating channels…');
+        tabs.push({ id:'channels', label:'Channels', icon:'◉', html: buildChannels() });
+        await sleep(30);
+
+        progress(55, 'Running statistical tests…');
+        tabs.push({ id:'stats', label:'Statistics', icon:'◫', html: buildStatistics() });
+        await sleep(30);
+
+        progress(65, 'Extracting LSB data…');
+        tabs.push({ id:'extract', label:'Extraction', icon:'⛏', html: buildExtraction() });
+        await sleep(30);
+
+        progress(75, 'Scanning metadata…');
+        tabs.push({ id:'meta', label:'Metadata', icon:'⊞', html: buildMetadata(file) });
+        await sleep(30);
+
+        progress(82, 'Forensic analysis…');
+        tabs.push({ id:'forensics', label:'Forensics', icon:'⊙', html: buildForensics(cvs, ctx) });
+        await sleep(30);
+
+        progress(90, 'Extracting strings…');
+        tabs.push({ id:'strings', label:'Strings', icon:'Aa', html: buildStrings() });
+        await sleep(30);
+
+        progress(95, 'Compiling findings…');
+        tabs.push({ id:'findings', label:'Findings', icon:'⚑', html: buildFindings() });
+
+        renderTabs(tabs);
+
+        progress(100, 'Analysis complete.');
+        await sleep(500);
+        progWrap.classList.remove('active');
+        resultsWrap.classList.add('active');
+
+    } catch (err) {
+        progress(0, 'Error: ' + err.message);
+        console.error(err);
+    }
+}
+
+/* ── BATCH PIPELINE ── */
+
+async function startBatch(files) {
+    progWrap.classList.add('active');
+    batchResultWrap.style.display = 'block';
+    resultsWrap.classList.remove('active');
+    hmGrid.innerHTML = '';
+    
+    let suspiciousCount = 0;
+    const total = files.length;
+    
+    for (let i = 0; i < total; i++) {
+        const file = files[i];
+        progress(Math.round((i/total)*100), `Scanning ${i+1}/${total}: ${file.name}`);
+        
+        try {
+            const score = await quickBatchScan(file);
+            const cell = document.createElement('div');
+            cell.className = 'hm-cell';
+            cell.title = `${file.name} (Score: ${score})`;
+            
+            // Color mapping
+            let color = 'var(--ok)';
+            if (score > 60) { color = 'var(--danger)'; suspiciousCount++; }
+            else if (score > 25) { color = 'var(--warn)'; suspiciousCount++; }
+            cell.style.background = color;
+            
+            cell.onclick = () => { BATCH_MODE = false; setMode(false); start(file); };
+            hmGrid.appendChild(cell);
+            
+            batchStats.textContent = `Scanned ${i+1} files. ${suspiciousCount} anomalies detected. Click any cell to view details.`;
+            
+            // Yield every 5 files to keep UI responsive
+            if (i % 5 === 0) await sleep(5);
+        } catch(e) { console.warn("Skip file:", file.name, e); }
+    }
+    
+    progress(100, `Batch scan complete. ${total} files processed.`);
+    setTimeout(() => progWrap.classList.remove('active'), 1000);
+}
+
+async function quickBatchScan(file) {
+    // Highly optimized minimal scan for batch processing
+    const arrayBuf = await readAsArrayBuffer(file);
+    const raw = new Uint8Array(arrayBuf);
+    const dataURL = await readAsDataURL(file);
+    const img = await loadImage(dataURL);
+    
+    const cvs = document.createElement('canvas');
+    cvs.width = Math.min(img.width, 256);
+    cvs.height = Math.min(img.height, 256);
+    const ctx = cvs.getContext('2d');
+    ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+    const id = ctx.getImageData(0, 0, cvs.width, cvs.height);
+    const pix = id.data;
+    const w = cvs.width, h = cvs.height;
+
+    // 1. Calculate Entropy (Fast)
+    let maxEnt = 0;
+    for (let c = 0; c < 3; c++) {
+        const freq = new Array(256).fill(0);
+        for (let i = 0; i < pix.length; i += 4) freq[pix[i+c]]++;
+        let h_val = 0;
+        for (let j = 0; j < 256; j++) {
+            if (freq[j] > 0) { const p = freq[j] / (w*h); h_val -= p * Math.log2(p); }
+        }
+        maxEnt = Math.max(maxEnt, h_val);
+    }
+    
+    // 2. Trailing Data Check (Very Fast)
+    let hasTrailing = 0;
+    if (raw[0] === 0x89 && raw[1] === 0x50) { // PNG
+       // Simple check for IEND
+       const str = String.fromCharCode(...raw.slice(-20));
+       if (!str.includes('IEND')) hasTrailing = 30;
+    } else if (raw[0] === 0xFF && raw[1] === 0xD8) { // JPEG
+       if (raw[raw.length-2] !== 0xFF || raw[raw.length-1] !== 0xD9) hasTrailing = 30;
+    }
+
+    let score = (maxEnt > 7.9 ? 50 : maxEnt > 7.5 ? 20 : 0) + hasTrailing;
+    return Math.min(100, score);
+}
+
+/* ── TABS ── */
+
+function renderTabs(tabs) {
+    tabsNav.innerHTML  = '';
+    tabPanels.innerHTML = '';
+    tabs.forEach(function(t, i) {
+        var btn = document.createElement('button');
+        btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = t.icon + ' ' + t.label;
+        btn.setAttribute('data-target', 'panel-' + t.id);
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(p) { p.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById('panel-' + t.id).classList.add('active');
+        });
+        tabsNav.appendChild(btn);
+
+        var panel = document.createElement('div');
+        panel.className = 'tab-content fade-in' + (i === 0 ? ' active' : '');
+        panel.id = 'panel-' + t.id;
+        panel.innerHTML = t.html;
+        tabPanels.appendChild(panel);
+    });
+
+    // Centralized Rendering & Logic Trigger
+    setTimeout(function() {
+        // Overview & Stats
+        var qsBox = document.getElementById('quickScan');
+        if (qsBox) qsBox.innerHTML = ANALYSIS_RESULTS.qs;
+        if (typeof calculateImmunity === 'function') calculateImmunity();
+
+        var rsBox = document.getElementById('rsBlock');
+        if (rsBox) rsBox.innerHTML = ANALYSIS_RESULTS.rs;
+        var distBox = document.getElementById('distBlock');
+        if (distBox) distBox.innerHTML = ANALYSIS_RESULTS.dist;
+
+        // Bit Planes & Channels
+        if (typeof renderBitPlanes === 'function') renderBitPlanes();
+        if (typeof renderChannels === 'function') renderChannels();
+        if (typeof renderHistogram === 'function') renderHistogram();
+
+        // Forensics
+        if (typeof performELA === 'function') performELA(FILE_CVS);
+        if (typeof performEdge === 'function') performEdge();
+        if (typeof performNoise === 'function') performNoise();
+
+        // Extraction listeners & fillers
+        var btn = document.getElementById('extractBtn');
+        if (btn) btn.addEventListener('click', runExtraction);
+        var exBox = document.getElementById('autoEx');
+        if (exBox) exBox.innerHTML = (typeof autoExtract === 'function') ? autoExtract() : "";
+        var patBox = document.getElementById('binPat');
+        if (patBox) patBox.innerHTML = (typeof binaryPatterns === 'function') ? binaryPatterns() : "";
+
+        // Metadata Fields
+        var el1 = document.getElementById('fileStruct'); if (el1) el1.innerHTML = fileStructure();
+        var el2 = document.getElementById('embSigs');    if (el2) el2.innerHTML = embeddedSigs();
+        var el3 = document.getElementById('metaFields'); if (el3) el3.innerHTML = metadataFields();
+        var el4 = document.getElementById('hexHead');    if (el4) el4.innerHTML = hexDumpView(0, 256);
+
+        // Strings
+        var strBox = document.getElementById('strOut');
+        if (strBox) strBox.innerHTML = extractAllStrings();
+    }, 50);
+}
+
+/* ── 1. OVERVIEW ── */
+
+function buildOverview(file) {
+    var totalPx    = W * H;
+    var maxPayload = Math.floor(totalPx * 3 / 8);
+    var ratio      = (W / H).toFixed(3);
+
+    var html = '<div class="grid2">';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Image Information</h3>';
+    html += '<img src="' + IMG_SRC + '" class="preview-img" style="margin-bottom:14px">';
+    html += '<div class="kv"><span class="k">File name</span><span class="v">' + esc(file.name) + '</span></div>';
+    html += '<div class="kv"><span class="k">File size</span><span class="v">' + fmt(file.size) + ' bytes (' + (file.size/1024).toFixed(1) + ' KB)</span></div>';
+    html += '<div class="kv"><span class="k">MIME type</span><span class="v">' + (file.type || 'unknown') + '</span></div>';
+    html += '<div class="kv"><span class="k">Dimensions</span><span class="v">' + W + ' × ' + H + ' px</span></div>';
+    html += '<div class="kv"><span class="k">Total pixels</span><span class="v">' + fmt(totalPx) + '</span></div>';
+    html += '<div class="kv"><span class="k">Aspect ratio</span><span class="v">' + ratio + '</span></div>';
+    html += '<div class="kv"><span class="k">Max LSB payload</span><span class="v">' + fmt(maxPayload) + ' bytes</span></div>';
+    html += '<div class="kv"><span class="k">Last modified</span><span class="v">' + new Date(file.lastModified).toLocaleString() + '</span></div>';
+    html += '</div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Quick Scan</h3><div class="data-block" id="quickScan">Running…</div></div>';
+    
+    // Immunity Score
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Stego Immunity Rating</h3>';
+    html += '<p style="font-size:11px;color:var(--text2);margin-bottom:10px">Predicts how likely stego data is to survive compression and detection.</p>';
+    html += '<div id="immunityBox">Calculating...</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    return html;
+}
+
+function calculateImmunity() {
+    const box = document.getElementById('immunityBox');
+    if (!box) return;
+
+    // Logic: High noise/texture = High Immunity (Data hides well)
+    // JPEG/WebP format = Low Survival (Compression strips LSB)
+    const ent = channelEntropy().reduce((a,b)=>a+b,0)/3;
+    const isLossy = RAW[0] === 0xFF || (CURRENT_FILE && CURRENT_FILE.type.includes('webp'));
+    
+    let score = Math.min(100, Math.max(0, (ent - 4) * 20));
+    let survival = isLossy ? 15 : 95;
+    
+    let html = `
+        <div class="kv"><span class="k">Camouflage Potential</span><span class="v">${score.toFixed(0)}%</span></div>
+        <div class="immunity-meter"><div class="immunity-fill" style="width:${score}%; background:linear-gradient(90deg, var(--danger), var(--ok))"></div></div>
+        <div class="kv"><span class="k">Social Media Survival</span><span class="v" style="color:${survival < 50 ? 'var(--danger)' : 'var(--ok)'}">${survival}%</span></div>
+        <div style="font-size:10px; color:var(--text2); margin-top:5px">
+            ${survival < 50 ? '⚠ WhatsApp/FB will likely strip your hidden data.' : '✓ Data should survive transit on Telegram/Discord.'}
+        </div>
+    `;
+    box.innerHTML = html;
+}
+
+function quickScan() {
+    var lines = [];
+    var ent = channelEntropy();
+    lines.push('<span class="hl">Channel Entropy (Shannon):</span>');
+    var chNames = ['R', 'G', 'B'];
+    for (var i = 0; i < 3; i++) {
+        var v = ent[i];
+        var tag = v > 7.9 ? 'danger' : v > 7.5 ? 'warn' : 'ok';
+        var msg = v > 7.9 ? '⚠ Very high — possible embedded data' : v > 7.5 ? '△ Elevated' : '✓ Normal';
+        lines.push('  ' + chNames[i] + ': <span class="' + tag + '">' + v.toFixed(4) + '</span>  ' + msg);
+        if (v > 7.9) addFinding('high', 'High entropy in ' + chNames[i] + ' channel', 'Entropy ' + v.toFixed(4) + ' suggests possible steganography.');
+    }
+    lines.push('');
+
+    var chi = chiSquare();
+    lines.push('<span class="hl">Chi-Square LSB Detection:</span>');
+    for (var i = 0; i < 3; i++) {
+        var p = chi[i];
+        var tag = p > 0.95 ? 'danger' : p > 0.5 ? 'warn' : 'ok';
+        var msg = p > 0.95 ? '⚠ Strong LSB embedding detected' : p > 0.5 ? '△ Suspicious' : '✓ Clean';
+        lines.push('  ' + chNames[i] + ': p = <span class="' + tag + '">' + p.toFixed(4) + '</span>  ' + msg);
+        if (p > 0.95) addFinding('high', 'Chi-square detects LSB in ' + chNames[i], 'p-value ' + p.toFixed(4));
+        else if (p > 0.5) addFinding('medium', 'Elevated chi-square in ' + chNames[i], 'p-value ' + p.toFixed(4));
+    }
+    lines.push('');
+
+    var uc = uniqueColors(5000);
+    lines.push('<span class="hl">Unique color ratio (sample):</span> ' + uc.ratio.toFixed(3) + '  ' + (uc.ratio > 0.95 ? '⚠ Unusually high' : '✓ Normal'));
+    if (uc.ratio > 0.95) addFinding('medium', 'Very high unique color ratio', 'Ratio ' + uc.ratio.toFixed(3));
+    lines.push('');
+
+    var trail = trailingData();
+    if (trail > 0) {
+        lines.push('<span class="warn">Trailing data after image end: ' + fmt(trail) + ' bytes</span>');
+        addFinding('high', 'Trailing data detected', trail + ' bytes after EOF marker.');
+    } else {
+        lines.push('<span class="ok">No trailing data detected.</span>');
+    }
+
+    return lines.join('\n');
+}
+
+/* ── 2. BIT PLANES ── */
+
+function buildBitPlanes() {
+    var html = '<div class="card"><h3><span class="dot dot-info"></span>Bit Plane Decomposition</h3>';
+    html += '<p style="font-size:12px;color:var(--text2);margin-bottom:14px">Bit 0 = LSB, Bit 7 = MSB. Random-looking LSB planes may indicate hidden data. Click to enlarge.</p>';
+    var channels = ['Red', 'Green', 'Blue'];
+    var chColors = ['#ef5350', '#66bb6a', '#42a5f5'];
+
+    for (var ci = 0; ci < 3; ci++) {
+        html += '<h4 style="color:' + chColors[ci] + ';margin:16px 0 8px;font-size:13px">' + channels[ci] + ' Channel</h4>';
+        html += '<div class="plane-grid">';
+        for (var bit = 0; bit < 8; bit++) {
+            html += '<div class="plane-cell"><canvas id="bp_' + ci + '_' + bit + '"></canvas><div class="label">Bit ' + bit + '</div></div>';
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+
+    return html;
+}
+
+function renderBitPlanes() {
+    if (!PIXELS) return;
+    var sw = Math.min(W, 256), sh = Math.min(H, 256);
+    for (var ci = 0; ci < 3; ci++) {
+        for (var bit = 0; bit < 8; bit++) {
+            var cvs = document.getElementById('bp_' + ci + '_' + bit);
+            if (!cvs) continue;
+            cvs.width = sw;
+            cvs.height = sh;
+            var ctx = cvs.getContext('2d');
+            var id = ctx.createImageData(sw, sh);
+            for (var y = 0; y < sh; y++) {
+                for (var x = 0; x < sw; x++) {
+                    var sx = Math.floor(x * W / sw), sy = Math.floor(y * H / sh);
+                    var si = (sy * W + sx) * 4;
+                    var val = ((PIXELS[si + ci] >> bit) & 1) * 255;
+                    var di = (y * sw + x) * 4;
+                    id.data[di] = id.data[di+1] = id.data[di+2] = val;
+                    id.data[di+3] = 255;
+                }
+            }
+            ctx.putImageData(id, 0, 0);
+            (function(c) { c.onclick = function() { openLightbox(c); }; })(cvs);
+        }
+    }
+}
+
+/* ── 3. CHANNELS ── */
+
+function buildChannels() {
+    var views = ['Red','Green','Blue','Alpha','Grayscale','Inverted','R-LSB Enhanced','G-LSB Enhanced','B-LSB Enhanced'];
+    var html = '<div class="card"><h3><span class="dot dot-info"></span>Channel Separation &amp; Views</h3>';
+    html += '<div class="channel-strip" id="channelStrip">';
+    for (var i = 0; i < views.length; i++) {
+        html += '<div class="ch-card"><canvas id="ch_' + i + '"></canvas><div class="label">' + views[i] + '</div></div>';
+    }
+    html += '</div></div>';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Color Histogram</h3>';
+    html += '<canvas id="histCvs" class="hist-canvas"></canvas></div>';
+
+    return html;
+}
+
+function renderChannels() {
+    var sw = Math.min(W, 200), sh = Math.min(H, 200);
+    var makers = [
+        function(r,g,b,a){return[r,0,0,255]},
+        function(r,g,b,a){return[0,g,0,255]},
+        function(r,g,b,a){return[0,0,b,255]},
+        function(r,g,b,a){return[a,a,a,255]},
+        function(r,g,b,a){var l=Math.round(0.299*r+0.587*g+0.114*b);return[l,l,l,255]},
+        function(r,g,b,a){return[255-r,255-g,255-b,255]},
+        function(r,g,b,a){var v=(r&1)*255;return[v,v,v,255]},
+        function(r,g,b,a){var v=(g&1)*255;return[v,v,v,255]},
+        function(r,g,b,a){var v=(b&1)*255;return[v,v,v,255]},
+    ];
+    for (var idx = 0; idx < makers.length; idx++) {
+        var cvs = document.getElementById('ch_' + idx);
+        if (!cvs) continue;
+        cvs.width = sw;
+        cvs.height = sh;
+        var ctx = cvs.getContext('2d');
+        var id = ctx.createImageData(sw, sh);
+        var fn = makers[idx];
+        for (var y = 0; y < sh; y++) {
+            for (var x = 0; x < sw; x++) {
+                var sx = Math.floor(x * W / sw), sy = Math.floor(y * H / sh);
+                var si = (sy * W + sx) * 4;
+                var c = fn(PIXELS[si], PIXELS[si+1], PIXELS[si+2], PIXELS[si+3]);
+                var di = (y * sw + x) * 4;
+                id.data[di] = c[0]; id.data[di+1] = c[1]; id.data[di+2] = c[2]; id.data[di+3] = c[3];
+            }
+        }
+        ctx.putImageData(id, 0, 0);
+        (function(c) { c.onclick = function() { openLightbox(c); }; })(cvs);
+    }
+}
+
+function renderHistogram() {
+    var cvs = document.getElementById('histCvs');
+    if (!cvs) return;
+    var cw = cvs.parentElement ? cvs.parentElement.clientWidth : 0;
+    if (cw < 100) cw = 600; // Fallback if tab is hidden
+    cw -= 42;
+    cvs.width = Math.max(100, cw); 
+    cvs.height = 180;
+    var ctx = cvs.getContext('2d');
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, cvs.width, 180);
+
+    var hists = [new Array(256).fill(0), new Array(256).fill(0), new Array(256).fill(0)];
+    var n = W * H;
+    for (var i = 0; i < n * 4; i += 4) {
+        hists[0][PIXELS[i]]++;
+        hists[1][PIXELS[i+1]]++;
+        hists[2][PIXELS[i+2]]++;
+    }
+    var mx = Math.max.apply(null, hists[0].concat(hists[1]).concat(hists[2]));
+    var colors = ['rgba(239,83,80,0.55)', 'rgba(102,187,106,0.55)', 'rgba(66,165,245,0.55)'];
+
+    for (var c = 0; c < 3; c++) {
+        ctx.strokeStyle = colors[c];
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (var i = 0; i < 256; i++) {
+            var x = i / 256 * cw, y = 180 - (hists[c][i] / mx) * 170;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+}
+
+/* ── 4. STATISTICS ── */
+
+function channelEntropy() {
+    var ent = [];
+    for (var c = 0; c < 3; c++) {
+        var freq = new Array(256).fill(0);
+        var n = W * H;
+        for (var i = 0; i < n * 4; i += 4) freq[PIXELS[i + c]]++;
+        var h = 0;
+        for (var j = 0; j < 256; j++) {
+            if (freq[j] > 0) { var p = freq[j] / n; h -= p * Math.log2(p); }
+        }
+        ent.push(h);
+    }
+    return ent;
+}
+
+function chiSquare() {
+    var results = [];
+    for (var c = 0; c < 3; c++) {
+        var freq = new Array(256).fill(0);
+        var n = W * H;
+        for (var i = 0; i < n * 4; i += 4) freq[PIXELS[i + c]]++;
+        var chi2 = 0, df = 0;
+        for (var k = 0; k < 128; k++) {
+            var f0 = freq[2*k], f1 = freq[2*k+1];
+            var expected = (f0 + f1) / 2;
+            if (expected > 0) {
+                chi2 += Math.pow(f0 - expected, 2) / expected + Math.pow(f1 - expected, 2) / expected;
+                df++;
+            }
+        }
+        var p = 1 - chi2CDF(chi2, df);
+        results.push(p);
+    }
+    return results;
+}
+
+function chi2CDF(x, k) {
+    if (k <= 0) return 0;
+    var z = Math.pow(x / k, 1/3) - (1 - 2 / (9 * k));
+    var s = Math.sqrt(2 / (9 * k));
+    return normalCDF(z / s);
+}
+
+function normalCDF(x) {
+    var t = 1 / (1 + 0.2316419 * Math.abs(x));
+    var d = 0.3989422804 * Math.exp(-x * x / 2);
+    var p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x > 0 ? 1 - p : p;
+}
+
+function uniqueColors(sampleSize) {
+    var set = new Set();
+    var step = Math.max(1, Math.floor(W * H / sampleSize));
+    var count = 0;
+    for (var i = 0; i < W * H * 4; i += 4 * step) {
+        set.add((PIXELS[i] << 16) | (PIXELS[i+1] << 8) | PIXELS[i+2]);
+        count++;
+    }
+    return { unique: set.size, sampled: count, ratio: set.size / count };
+}
+
+function buildStatistics() {
+    var ent = channelEntropy();
+    var chi = chiSquare();
+    var chNames = ['Red', 'Green', 'Blue'];
+
+    var html = '<div class="grid2">';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Shannon Entropy</h3>';
+    html += '<p style="font-size:11px;color:var(--text2);margin-bottom:10px">Natural images: 6.5–7.5. Values &gt;7.9 may indicate embedded data.</p>';
+    for (var i = 0; i < 3; i++) {
+        var v = ent[i], pctW = v / 8 * 100;
+        var col = v > 7.9 ? 'var(--danger)' : v > 7.5 ? 'var(--warn)' : 'var(--ok)';
+        html += '<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:12px"><span>' + chNames[i] + '</span><span style="color:' + col + '">' + v.toFixed(4) + '</span></div>';
+        html += '<div style="height:6px;background:var(--bg);border-radius:3px;margin-top:3px"><div style="height:100%;width:' + pctW + '%;background:' + col + ';border-radius:3px"></div></div></div>';
+    }
+    html += '</div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Chi-Square LSB Test</h3>';
+    html += '<p style="font-size:11px;color:var(--text2);margin-bottom:10px">High p-value ≈ steganography detected.</p>';
+    for (var i = 0; i < 3; i++) {
+        var p = chi[i];
+        var col = p > 0.95 ? 'var(--danger)' : p > 0.5 ? 'var(--warn)' : 'var(--ok)';
+        var label = p > 0.95 ? 'Stego likely' : p > 0.5 ? 'Suspicious' : 'Clean';
+        html += '<div class="kv"><span class="k">' + chNames[i] + ' p-value</span><span class="v" style="color:' + col + '">' + p.toFixed(4) + ' — ' + label + '</span></div>';
+    }
+    html += '</div></div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>RS Steganalysis</h3>';
+    html += '<p style="font-size:11px;color:var(--text2);margin-bottom:10px">Estimates percentage of pixels modified by LSB embedding.</p>';
+    html += '<div class="data-block" id="rsBlock">Computing…</div></div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Value Distribution Anomalies</h3>';
+    html += '<div class="data-block" id="distBlock">Computing…</div></div>';
+
+    return html;
+}
+
+function rsAnalysis() {
+    var lines = [];
+    for (var c = 0; c < 3; c++) {
+        var ch = ['Red','Green','Blue'][c];
+        var Rm = 0, Sm = 0, Rn = 0, Sn = 0, total = 0;
+        var groupSize = 4;
+        var mask = [0,1,1,0];
+        var maxGroups = Math.min(Math.floor(W * H / groupSize), 20000);
+
+        for (var g = 0; g < maxGroups; g++) {
+            var base = g * groupSize;
+            var vals = [];
+            for (var j = 0; j < groupSize; j++) {
+                var idx = (base + j) * 4 + c;
+                if (idx < PIXELS.length) vals.push(PIXELS[idx]);
+            }
+            if (vals.length < groupSize) break;
+
+            var d0 = discrimination(vals);
+            var flipped_p = vals.map(function(v, i) { return mask[i] ? flipLSB(v) : v; });
+            var dp = discrimination(flipped_p);
+            var flipped_n = vals.map(function(v, i) { return mask[i] ? flipLSBn(v) : v; });
+            var dn = discrimination(flipped_n);
+
+            if (dp > d0) Rm++; else if (dp < d0) Sm++;
+            if (dn > d0) Rn++; else if (dn < d0) Sn++;
+            total++;
+        }
+        var rm = Rm/total, sm = Sm/total, rn = Rn/total, sn = Sn/total;
+        var d0v = rm - sm, d1v = rn - sn;
+        var est = 0;
+        if (Math.abs(d0v - d1v) > 0.001) {
+            est = Math.abs(d0v / (d0v - d1v));
+            est = Math.min(est, 1);
+        }
+        var tag = est > 0.3 ? 'danger' : est > 0.1 ? 'warn' : 'ok';
+        lines.push('<span class="hl">' + ch + ':</span> R+=' + rm.toFixed(3) + ' S+=' + sm.toFixed(3) + ' R-=' + rn.toFixed(3) + ' S-=' + sn.toFixed(3));
+        lines.push('  Estimated embedding: <span class="' + tag + '">' + (est*100).toFixed(1) + '%</span> ' + (est > 0.3 ? '⚠ Significant embedding detected' : est > 0.1 ? '△ Minor anomaly' : '✓ Clean'));
+        if (est > 0.3) addFinding('high', 'RS detects embedding in ' + ch, (est*100).toFixed(1) + '% estimated.');
+        else if (est > 0.1) addFinding('medium', 'RS anomaly in ' + ch, (est*100).toFixed(1) + '% estimated.');
+        lines.push('');
+    }
+    return lines.join('\n');
+}
+
+function discrimination(arr) {
+    var sum = 0;
+    for (var i = 1; i < arr.length; i++) sum += Math.abs(arr[i] - arr[i-1]);
+    return sum;
+}
+function flipLSB(v) { return v ^ 1; }
+function flipLSBn(v) {
+    if (v === 255) return 254;
+    if (v === 0) return 1;
+    return (v & 1) ? (v - 1) : (v + 1);
+}
+
+function distributionAnalysis() {
+    var lines = [];
+    var chNames = ['Red','Green','Blue'];
+    for (var c = 0; c < 3; c++) {
+        var freq = new Array(256).fill(0);
+        var n = W * H;
+        for (var i = 0; i < n * 4; i += 4) freq[PIXELS[i + c]]++;
+        var even = 0, odd = 0;
+        for (var v = 0; v < 256; v++) { if (v % 2 === 0) even += freq[v]; else odd += freq[v]; }
+        var balance = Math.abs(even - odd) / (even + odd);
+        var balTag = balance < 0.005 ? 'warn' : 'ok';
+        lines.push('<span class="hl">' + chNames[c] + ':</span>');
+        lines.push('  Even/odd balance: <span class="' + balTag + '">' + balance.toFixed(5) + '</span> ' + (balance < 0.005 ? '⚠ Suspiciously balanced' : '✓ Natural'));
+        if (balance < 0.005) addFinding('medium', 'Even/odd imbalance in ' + chNames[c], 'Balance ' + balance.toFixed(5));
+
+        var spikes = 0, gaps = 0;
+        var avg = n / 256;
+        for (var v = 0; v < 256; v++) {
+            if (freq[v] > avg * 4) spikes++;
+            if (freq[v] === 0 && v > 0 && v < 255) gaps++;
+        }
+        if (spikes > 0 || gaps > 0) lines.push('  Anomalies: ' + spikes + ' spikes, ' + gaps + ' gaps');
+        lines.push('');
+    }
+    return lines.join('\n');
+}
+
+/* ── 5. EXTRACTION ── */
+
+function buildExtraction() {
+    var html = '<div class="card"><h3><span class="dot dot-info"></span>LSB Data Extraction</h3>';
+    html += '<div class="ctrl-row">';
+    html += '<span class="ctrl-label">Channels:</span>';
+    html += '<select id="exCh"><option value="rgb">RGB</option><option value="r">R only</option><option value="g">G only</option><option value="b">B only</option><option value="rgba">RGBA</option></select>';
+    html += '<span class="ctrl-label">Bit:</span>';
+    html += '<select id="exBit"><option value="0">LSB (0)</option><option value="1">Bit 1</option><option value="2">Bit 2</option></select>';
+    html += '<span class="ctrl-label">Order:</span>';
+    html += '<select id="exOrd"><option value="row">Row-first</option><option value="col">Column-first</option></select>';
+    html += '<span class="ctrl-label">Length:</span>';
+    html += '<select id="exLen"><option value="2000">2000 px</option><option value="5000">5000 px</option><option value="20000">20000 px</option><option value="all">All</option></select>';
+    html += '<button class="ctrl-btn primary" id="extractBtn" type="button">Extract</button>';
+    html += '</div>';
+    html += '<div class="data-block" id="exOut" style="min-height:60px">Click Extract to run.</div>';
+    html += '</div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Auto-Extract (Common Methods)</h3>';
+    html += '<div class="data-block" id="autoEx">Extracting…</div></div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Binary Pattern Search</h3>';
+    html += '<div class="data-block" id="binPat">Scanning…</div></div>';
+
+    return html;
+}
+
+function extractLSBits(channelList, bit, order, maxPx) {
+    var bitArr = [];
+    var limit = maxPx === 'all' ? W * H : parseInt(maxPx);
+    if (order === 'row') {
+        var count = 0;
+        for (var idx = 0; idx < W * H && count < limit; idx++) {
+            var pi = idx * 4;
+            for (var ci = 0; ci < channelList.length; ci++) {
+                bitArr.push((PIXELS[pi + channelList[ci]] >> bit) & 1);
+            }
+            count++;
+        }
+    } else {
+        var count = 0;
+        for (var x = 0; x < W && count < limit; x++) {
+            for (var y = 0; y < H && count < limit; y++) {
+                var pi = (y * W + x) * 4;
+                for (var ci = 0; ci < channelList.length; ci++) {
+                    bitArr.push((PIXELS[pi + channelList[ci]] >> bit) & 1);
+                }
+                count++;
+            }
+        }
+    }
+    var bits = bitArr.join('');
+    var textArr = [];
+    for (var i = 0; i + 7 < bits.length; i += 8) {
+        var byte = parseInt(bits.substr(i, 8), 2);
+        if (byte === 0) break;
+        textArr.push(String.fromCharCode(byte));
+        // Safety limit for text extraction
+        if (textArr.length > 50000) break;
+    }
+    return { bits: bits, text: textArr.join('') };
+}
+
+function runExtraction() {
+    var chMap = { rgb: [0,1,2], r: [0], g: [1], b: [2], rgba: [0,1,2,3] };
+    var ch  = chMap[document.getElementById('exCh').value];
+    var bit = parseInt(document.getElementById('exBit').value);
+    var ord = document.getElementById('exOrd').value;
+    var len = document.getElementById('exLen').value;
+    var result = extractLSBits(ch, bit, ord, len);
+    var out = document.getElementById('exOut');
+    var display = '';
+    if (result.text.length > 0) {
+        var clean = result.text.replace(/[^\x20-\x7E\n\r\t]/g, '·');
+        display += '<span class="hl">Extracted ' + result.text.length + ' characters:</span>\n\n';
+        display += esc(clean.substring(0, 2000));
+        if (clean.length > 2000) display += '\n\n… (' + clean.length + ' total)';
+        var printable = result.text.replace(/[^\x20-\x7E]/g, '').length;
+        var ratio = printable / result.text.length;
+        display += '\n\n<span class="hl">Printable ratio:</span> ' + (ratio * 100).toFixed(1) + '% ' + (ratio > 0.8 ? '← Likely meaningful!' : '');
+    } else {
+        display = 'No readable data extracted with these settings.';
+    }
+    out.innerHTML = display;
+}
+
+function autoExtract() {
+    var lines = [];
+    var methods = [
+        { name: 'RGB LSB row',   ch: [0,1,2], bit: 0, ord: 'row' },
+        { name: 'RGB LSB col',   ch: [0,1,2], bit: 0, ord: 'col' },
+        { name: 'R-only LSB',    ch: [0],     bit: 0, ord: 'row' },
+        { name: 'G-only LSB',    ch: [1],     bit: 0, ord: 'row' },
+        { name: 'B-only LSB',    ch: [2],     bit: 0, ord: 'row' },
+        { name: 'A-only LSB',    ch: [3],     bit: 0, ord: 'row' },
+        { name: 'RGB Bit1',      ch: [0,1,2], bit: 1, ord: 'row' },
+        { name: 'BGR LSB',       ch: [2,1,0], bit: 0, ord: 'row' },
+    ];
+    for (var mi = 0; mi < methods.length; mi++) {
+        var m = methods[mi];
+        var r = extractLSBits(m.ch, m.bit, m.ord, '3000');
+        var clean = r.text.replace(/[^\x20-\x7E]/g, '');
+        var ratio = r.text.length > 0 ? clean.length / r.text.length : 0;
+        var preview = clean.substring(0, 80);
+        var tag = '';
+        if (ratio > 0.85 && clean.length > 20) {
+            tag = '<span class="ok"> ← Readable!</span>';
+            addFinding('high', 'Readable LSB data (' + m.name + ')', preview);
+        } else if (ratio > 0.5 && clean.length > 10) {
+            tag = '<span class="warn"> ← Partially readable</span>';
+        }
+        lines.push('<span class="hl">' + m.name + ':</span>' + tag);
+        if (preview.length > 0) {
+            lines.push('  ' + esc(preview) + (clean.length > 80 ? '…' : ''));
+            lines.push('  Printable: ' + (ratio * 100).toFixed(0) + '%, Length: ' + clean.length);
+        } else {
+            lines.push('  (no readable data)');
+        }
+        lines.push('');
+    }
+    return lines.join('\n');
+}
+
+function binaryPatterns() {
+    var lines = [];
+    var r = extractLSBits([0,1,2], 0, 'row', '5000');
+    var sigs = [
+        { name: 'PNG',  hex: '89504e47' },
+        { name: 'JPEG', hex: 'ffd8ff' },
+        { name: 'ZIP',  hex: '504b0304' },
+        { name: 'PDF',  hex: '25504446' },
+        { name: 'GIF',  hex: '47494638' },
+        { name: 'RIFF', hex: '52494646' },
+    ];
+    lines.push('<span class="hl">Searching LSB bitstream for embedded file signatures…</span>\n');
+    var bytes = [];
+    for (var i = 0; i + 7 < r.bits.length && bytes.length < 5000; i += 8) {
+        bytes.push(parseInt(r.bits.substr(i, 8), 2));
+    }
+    var hexStr = bytes.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    var foundAny = false;
+    for (var si = 0; si < sigs.length; si++) {
+        var idx = hexStr.indexOf(sigs[si].hex);
+        if (idx >= 0) {
+            lines.push('<span class="danger">⚠ ' + sigs[si].name + ' signature found at byte offset ' + (idx/2) + '!</span>');
+            addFinding('high', 'Embedded ' + sigs[si].name + ' in LSB', 'Signature at byte ' + (idx/2));
+            foundAny = true;
+        }
+    }
+    if (!foundAny) lines.push('<span class="ok">No embedded file signatures found in LSB stream.</span>');
+
+    lines.push('\n<span class="hl">Longest readable sequences in LSB:</span>\n');
+    var seqs = r.text.match(/[\x20-\x7E]{6,}/g) || [];
+    var sorted = seqs.sort(function(a,b) { return b.length - a.length; }).slice(0, 10);
+    if (sorted.length > 0) {
+        for (var i = 0; i < sorted.length; i++) lines.push('  "' + esc(sorted[i].substring(0, 100)) + '"');
+    } else {
+        lines.push('  No sequences ≥6 characters found.');
+    }
+    return lines.join('\n');
+}
+
+/* ── 6. METADATA ── */
+
+function trailingData() {
+    try {
+        if (RAW[0] === 0x89 && RAW[1] === 0x50) {
+            var offset = 8;
+            while (offset < RAW.length - 8) {
+                var len = ((RAW[offset] << 24) | (RAW[offset+1] << 16) | (RAW[offset+2] << 8) | RAW[offset+3]) >>> 0;
+                var type = String.fromCharCode(RAW[offset+4], RAW[offset+5], RAW[offset+6], RAW[offset+7]);
+                if (len > 0x7FFFFFFF) break; // Sanity check
+                offset += 12 + len;
+                if (type === 'IEND') return Math.max(0, RAW.length - offset);
+                if (offset > RAW.length) break;
+            }
+        } else if (RAW[0] === 0xFF && RAW[1] === 0xD8) {
+            for (var i = RAW.length - 2; i >= 0; i--) {
+                if (RAW[i] === 0xFF && RAW[i+1] === 0xD9) return Math.max(0, RAW.length - i - 2);
+            }
+        }
+    } catch(e) {}
+    return 0;
+}
+
+function buildMetadata(file) {
+    var html = '<div class="grid2">';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>File Structure</h3><div class="data-block" id="fileStruct">Scanning…</div></div>';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Embedded Signatures</h3><div class="data-block" id="embSigs">Scanning…</div></div>';
+    html += '</div>';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Metadata Fields</h3><div class="data-block" id="metaFields">Scanning…</div></div>';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Hex Header (first 256 bytes)</h3><div class="data-block" id="hexHead">Building…</div></div>';
+
+    return html;
+}
+
+function fileStructure() {
+    var lines = [];
+    try {
+        if (RAW[0] === 0x89 && RAW[1] === 0x50) {
+            lines.push('<span class="hl">Format: PNG</span>\n');
+            var offset = 8;
+            while (offset < RAW.length - 8) {
+                var len = ((RAW[offset] << 24) | (RAW[offset+1] << 16) | (RAW[offset+2] << 8) | RAW[offset+3]) >>> 0;
+                var type = String.fromCharCode(RAW[offset+4], RAW[offset+5], RAW[offset+6], RAW[offset+7]);
+                lines.push('  0x' + offset.toString(16).padStart(6, '0') + '  ' + type + '  ' + fmt(len) + ' bytes');
+                if (type === 'tEXt' || type === 'iTXt' || type === 'zTXt') {
+                    var textData = [];
+                    for (var i = offset + 8; i < offset + 8 + len && i < RAW.length; i++) {
+                        textData.push(RAW[i] >= 32 && RAW[i] <= 126 ? String.fromCharCode(RAW[i]) : '·');
+                    }
+                    var txt = textData.join('');
+                    lines.push('    <span class="warn">Text: ' + esc(txt.substring(0, 120)) + '</span>');
+                    addFinding('low', 'PNG text chunk (' + type + ')', txt.substring(0, 200));
+                }
+                if (len > 0x7FFFFFFF) break;
+                offset += 12 + len;
+                if (type === 'IEND' || offset > RAW.length) break;
+            }
+        if (offset < RAW.length && offset > 0) {
+            var extra = RAW.length - offset;
+            if (extra > 0) {
+                lines.push('\n<span class="danger">⚠ ' + fmt(extra) + ' bytes after IEND chunk!</span>');
+                addFinding('high', 'Data after PNG IEND', extra + ' bytes found after end of PNG.');
+            }
+        }
+    } else if (RAW[0] === 0xFF && RAW[1] === 0xD8) {
+        lines.push('<span class="hl">Format: JPEG</span>\n');
+        var offset = 0;
+        while (offset < RAW.length - 2) {
+            if (RAW[offset] !== 0xFF) { offset++; continue; }
+            var marker = RAW[offset + 1];
+            if (marker === 0xD8) { lines.push('  0x' + offset.toString(16).padStart(6, '0') + '  SOI'); offset += 2; continue; }
+            if (marker === 0xD9) {
+                lines.push('  0x' + offset.toString(16).padStart(6, '0') + '  EOI');
+                if (offset + 2 < RAW.length) {
+                    var extra = RAW.length - offset - 2;
+                    lines.push('\n<span class="danger">⚠ ' + fmt(extra) + ' bytes after EOI marker!</span>');
+                    addFinding('high', 'Data after JPEG EOI', extra + ' bytes after end of JPEG.');
+                }
+                break;
+            }
+            if (offset + 3 < RAW.length) {
+                var segLen = (RAW[offset + 2] << 8) | RAW[offset + 3];
+                var names = { 0xE0: 'APP0/JFIF', 0xE1: 'APP1/EXIF', 0xE2: 'APP2', 0xFE: 'Comment', 0xDB: 'DQT', 0xC0: 'SOF0', 0xC4: 'DHT', 0xDA: 'SOS' };
+                var name = names[marker] || ('0x' + marker.toString(16).toUpperCase());
+                lines.push('  0x' + offset.toString(16).padStart(6, '0') + '  ' + name + '  ' + segLen + ' bytes');
+                if (marker === 0xFE) {
+                    var comment = [];
+                    for (var i = offset + 4; i < offset + 2 + segLen; i++) {
+                        comment.push(RAW[i] >= 32 && RAW[i] <= 126 ? String.fromCharCode(RAW[i]) : '·');
+                    }
+                    lines.push('    <span class="warn">Comment: ' + esc(comment.join('')) + '</span>');
+                    addFinding('medium', 'JPEG comment found', comment.join(''));
+                }
+                offset += 2 + segLen;
+            } else break;
+        }
+    } else {
+        lines.push('<span class="hl">Format: Other</span>');
+        lines.push('Header bytes: ' + Array.from(RAW.slice(0, 8)).map(function(b) { return '0x' + b.toString(16).padStart(2, '0'); }).join(' '));
+    }
+    } catch(e) { lines.push('<span class="danger">Error scanning structure at offset ' + offset + '</span>'); }
+    return lines.join('\n');
+}
+
+function embeddedSigs() {
+    var lines = [];
+    var sigs = [
+        { bytes: [0x50,0x4B,0x03,0x04], name: 'ZIP archive' },
+        { bytes: [0x50,0x4B,0x05,0x06], name: 'ZIP (empty)' },
+        { bytes: [0x1F,0x8B,0x08],       name: 'GZIP' },
+        { bytes: [0x89,0x50,0x4E,0x47], name: 'PNG' },
+        { bytes: [0xFF,0xD8,0xFF],       name: 'JPEG' },
+        { bytes: [0x47,0x49,0x46,0x38], name: 'GIF' },
+        { bytes: [0x52,0x61,0x72,0x21], name: 'RAR' },
+        { bytes: [0x25,0x50,0x44,0x46], name: 'PDF' },
+        { bytes: [0x7F,0x45,0x4C,0x46], name: 'ELF' },
+        { bytes: [0x42,0x5A,0x68],       name: 'BZIP2' },
+        { bytes: [0x37,0x7A,0xBC,0xAF,0x27,0x1C], name: '7-Zip' },
+        { bytes: [0x52,0x49,0x46,0x46], name: 'RIFF/AVI/WAV' },
+    ];
+    var found = 0;
+    var skippedFirst = false;
+    for (var i = 0; i < RAW.length - 10; i++) {
+        for (var si = 0; si < sigs.length; si++) {
+            var sig = sigs[si];
+            var match = true;
+            for (var j = 0; j < sig.bytes.length; j++) {
+                if (i + j >= RAW.length || RAW[i + j] !== sig.bytes[j]) { match = false; break; }
+            }
+            if (match) {
+                if (!skippedFirst && i < 10) { skippedFirst = true; continue; }
+                lines.push('<span class="warn">0x' + i.toString(16).padStart(6, '0') + ': ' + sig.name + '</span>');
+                addFinding('high', 'Embedded ' + sig.name + ' at 0x' + i.toString(16), 'Secondary file signature inside image.');
+                found++;
+            }
+        }
+    }
+    if (found === 0) lines.push('<span class="ok">No embedded file signatures found.</span>');
+    else lines.unshift('<span class="danger">Found ' + found + ' embedded signature(s):</span>\n');
+    return lines.join('\n');
+}
+
+function metadataFields() {
+    var lines = [];
+    var keywords = ['Author','Artist','Copyright','Comment','Description','Title','Software','Creator',
+        'XMP','photoshop','Exif','GPS','DateTime','Make','Model','password','secret','hidden','flag','hint'];
+    var text = rawToText(RAW);
+    var found = 0;
+    for (var ki = 0; ki < keywords.length; ki++) {
+        var kw = keywords[ki];
+        var idx = text.toLowerCase().indexOf(kw.toLowerCase());
+        if (idx >= 0) {
+            var context = text.substring(Math.max(0, idx - 10), Math.min(text.length, idx + 60)).replace(/[^\x20-\x7E]/g, '·');
+            lines.push('<span class="warn">"' + kw + '" at offset ~' + idx + ':</span> ' + esc(context));
+            found++;
+        }
+    }
+    if (found === 0) lines.push('<span class="ok">No notable metadata keywords found.</span>');
+    return lines.join('\n');
+}
+
+function rawToText(data) {
+    var s = '';
+    for (var i = 0; i < data.length; i++) {
+        s += data[i] >= 32 && data[i] <= 126 ? String.fromCharCode(data[i]) : ' ';
+    }
+    return s;
+}
+
+function hexDumpView(start, len) {
+    var lines = [];
+    var end = Math.min(start + len, RAW.length);
+    for (var i = start; i < end; i += 16) {
+        var hex = '', ascii = '';
+        for (var j = 0; j < 16; j++) {
+            if (i + j < end) {
+                var b = RAW[i + j];
+                hex += b.toString(16).padStart(2, '0') + ' ';
+                ascii += b >= 32 && b <= 126 ? String.fromCharCode(b) : '·';
+            } else {
+                hex += '   '; ascii += ' ';
+            }
+            if (j === 7) hex += ' ';
+        }
+        lines.push('<span class="hl">' + i.toString(16).padStart(6, '0') + '</span>  ' + hex + ' ' + esc(ascii));
+    }
+    return lines.join('\n');
+}
+
+/* ── 7. FORENSICS ── */
+
+function buildForensics(cvs, ctx) {
+    var html = '<div class="grid2">';
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Error Level Analysis (ELA)</h3>';
+    html += '<p style="font-size:11px;color:var(--text2);margin-bottom:10px">Re-compresses at 95% quality and shows difference. Bright areas indicate modifications.</p>';
+    html += '<canvas id="elaCvs" style="width:100%;border-radius:6px;border:1px solid var(--border);cursor:pointer"></canvas></div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Edge Detection (Sobel)</h3>';
+    html += '<canvas id="edgeCvs" style="width:100%;border-radius:6px;border:1px solid var(--border);cursor:pointer"></canvas></div>';
+    html += '</div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Noise Residual Analysis</h3>';
+    html += '<p style="font-size:11px;color:var(--text2);margin-bottom:10px">Extracts high-frequency noise. Uniform noise may indicate steganographic payload.</p>';
+    html += '<canvas id="noiseCvs" style="width:100%;max-height:300px;border-radius:6px;border:1px solid var(--border);cursor:pointer"></canvas></div>';
+
+    return html;
+}
+
+function performELA(srcCvs) {
+    var elaCvs = document.getElementById('elaCvs');
+    if (!elaCvs) return;
+    var jpegURL = srcCvs.toDataURL('image/jpeg', 0.95);
+    var img2 = new Image();
+    img2.onload = function() {
+        var c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+        var ctx2 = c2.getContext('2d'); ctx2.drawImage(img2, 0, 0);
+        var id2 = ctx2.getImageData(0, 0, W, H);
+
+        var sw = Math.min(W, 500), sh = Math.min(H, 500);
+        elaCvs.width = sw; elaCvs.height = sh;
+        var ectx = elaCvs.getContext('2d');
+        var eid = ectx.createImageData(sw, sh);
+        var scale = 20;
+
+        for (var y = 0; y < sh; y++) {
+            for (var x = 0; x < sw; x++) {
+                var sx = Math.floor(x * W / sw), sy = Math.floor(y * H / sh);
+                var si = (sy * W + sx) * 4;
+                var di = (y * sw + x) * 4;
+                for (var c = 0; c < 3; c++) {
+                    eid.data[di + c] = Math.min(255, Math.abs(PIXELS[si + c] - id2.data[si + c]) * scale);
+                }
+                eid.data[di + 3] = 255;
+            }
+        }
+        ectx.putImageData(eid, 0, 0);
+        elaCvs.onclick = function() { openLightbox(elaCvs); };
+    };
+    img2.src = jpegURL;
+}
+
+function performEdge() {
+    var cvs = document.getElementById('edgeCvs'); if (!cvs) return;
+    var sw = Math.min(W, 500), sh = Math.min(H, 500);
+    cvs.width = sw; cvs.height = sh;
+    var ctx = cvs.getContext('2d');
+    var out = ctx.createImageData(sw, sh);
+
+    var gx = [[-1,0,1],[-2,0,2],[-1,0,1]];
+    var gy = [[-1,-2,-1],[0,0,0],[1,2,1]];
+
+    for (var y = 1; y < sh - 1; y++) {
+        for (var x = 1; x < sw - 1; x++) {
+            var sumX = 0, sumY = 0;
+            for (var ky = -1; ky <= 1; ky++) {
+                for (var kx = -1; kx <= 1; kx++) {
+                    var sx2 = Math.floor((x + kx) * W / sw), sy2 = Math.floor((y + ky) * H / sh);
+                    var si = (sy2 * W + sx2) * 4;
+                    var gray = 0.299 * PIXELS[si] + 0.587 * PIXELS[si + 1] + 0.114 * PIXELS[si + 2];
+                    sumX += gray * gx[ky + 1][kx + 1];
+                    sumY += gray * gy[ky + 1][kx + 1];
+                }
+            }
+            var mag = Math.min(255, Math.sqrt(sumX * sumX + sumY * sumY));
+            var di = (y * sw + x) * 4;
+            out.data[di] = out.data[di + 1] = out.data[di + 2] = mag;
+            out.data[di + 3] = 255;
+        }
+    }
+    ctx.putImageData(out, 0, 0);
+    cvs.onclick = function() { openLightbox(cvs); };
+}
+
+function performNoise() {
+    var cvs = document.getElementById('noiseCvs'); if (!cvs) return;
+    var sw = Math.min(W, 500), sh = Math.min(H, 500);
+    cvs.width = sw; cvs.height = sh;
+    var ctx = cvs.getContext('2d');
+    var out = ctx.createImageData(sw, sh);
+
+    for (var y = 1; y < sh - 1; y++) {
+        for (var x = 1; x < sw - 1; x++) {
+            var di = (y * sw + x) * 4;
+            for (var c = 0; c < 3; c++) {
+                var sum = 0, cnt = 0;
+                for (var ky = -1; ky <= 1; ky++) {
+                    for (var kx = -1; kx <= 1; kx++) {
+                        if (kx === 0 && ky === 0) continue;
+                        var sx2 = Math.floor((x + kx) * W / sw), sy2 = Math.floor((y + ky) * H / sh);
+                        sum += PIXELS[(sy2 * W + sx2) * 4 + c]; cnt++;
+                    }
+                }
+                var avg = sum / cnt;
+                var sx3 = Math.floor(x * W / sw), sy3 = Math.floor(y * H / sh);
+                var diff = PIXELS[(sy3 * W + sx3) * 4 + c] - avg;
+                out.data[di + c] = Math.min(255, Math.max(0, 128 + diff * 3));
+            }
+            out.data[di + 3] = 255;
+        }
+    }
+    ctx.putImageData(out, 0, 0);
+    cvs.onclick = function() { openLightbox(cvs); };
+}
+
+/* ── 8. STRINGS ── */
+
+function buildStrings() {
+    var html = '<div class="card"><h3><span class="dot dot-info"></span>Extracted Strings (≥6 chars)</h3>';
+    html += '<div class="data-block" id="strOut" style="max-height:500px">Extracting…</div></div>';
+    return html;
+}
+
+function extractAllStrings() {
+    var lines = [];
+    var cur = '', curStart = 0;
+    var strings = [];
+    for (var i = 0; i < RAW.length; i++) {
+        if (RAW[i] >= 32 && RAW[i] <= 126) {
+            if (cur.length === 0) curStart = i;
+            cur += String.fromCharCode(RAW[i]);
+        } else {
+            if (cur.length >= 6) strings.push({ offset: curStart, text: cur });
+            cur = '';
+        }
+    }
+    if (cur.length >= 6) strings.push({ offset: curStart, text: cur });
+
+    var suspicious = strings.filter(function(s) { return /password|secret|hidden|flag|key|steg|encode|decode|base64|hint/i.test(s.text); });
+    var urls = strings.filter(function(s) { return /https?:\/\/|www\./i.test(s.text); });
+    var encoded = strings.filter(function(s) { return /^[A-Za-z0-9+\/]{20,}={0,2}$/.test(s.text); });
+
+    if (suspicious.length > 0) {
+        lines.push('<span class="danger">⚠ Suspicious strings (' + suspicious.length + '):</span>');
+        for (var i = 0; i < suspicious.length; i++) {
+            lines.push('  0x' + suspicious[i].offset.toString(16).padStart(6, '0') + ': ' + esc(suspicious[i].text.substring(0, 120)));
+            addFinding('high', 'Suspicious string: "' + suspicious[i].text.substring(0, 50) + '"', 'At offset 0x' + suspicious[i].offset.toString(16));
+        }
+        lines.push('');
+    }
+    if (urls.length > 0) {
+        lines.push('<span class="warn">URLs found (' + urls.length + '):</span>');
+        for (var i = 0; i < urls.length; i++) lines.push('  ' + esc(urls[i].text.substring(0, 120)));
+        lines.push('');
+    }
+    if (encoded.length > 0) {
+        lines.push('<span class="warn">Possible Base64 (' + encoded.length + '):</span>');
+        for (var i = 0; i < Math.min(5, encoded.length); i++) {
+            lines.push('  ' + esc(encoded[i].text.substring(0, 80)) + '…');
+            try {
+                var dec = atob(encoded[i].text);
+                var printable = dec.replace(/[^\x20-\x7E]/g, '');
+                if (printable.length > 3) lines.push('    <span class="ok">→ ' + esc(printable.substring(0, 80)) + '</span>');
+            } catch (e) {}
+        }
+        lines.push('');
+    }
+
+    lines.push('<span class="hl">All strings (' + strings.length + ' total, showing up to 200):</span>\n');
+    for (var i = 0; i < Math.min(200, strings.length); i++) {
+        lines.push('<span style="color:var(--blue1)">0x' + strings[i].offset.toString(16).padStart(6, '0') + '</span> ' + esc(strings[i].text.substring(0, 100)) + (strings[i].text.length > 100 ? '…' : ''));
+    }
+    if (strings.length > 200) lines.push('\n… and ' + (strings.length - 200) + ' more.');
+    return lines.join('\n');
+}
+
+/* ── 9. FINDINGS ── */
+
+function buildFindings() {
+    // False Positive Killer: Ensemble Logic
+    // We only create high-severity findings if multiple tests agree
+    const consensus = [];
+    const tests = {
+        entropy: findings.some(f => f.title.includes('entropy')),
+        chisquare: findings.some(f => f.title.includes('Chi-square')),
+        rs: findings.some(f => f.title.includes('RS detects')),
+        strings: findings.some(f => f.title.includes('Suspicious string'))
+    };
+
+    let confirmedHigh = 0;
+    const filteredFindings = findings.filter(f => {
+        if (f.severity !== 'high') return true;
+        // Killer Logic: A "High" entropy or chi-square alone is often a false positive in noisy images
+        // We need at least one other confirming test or a specific string/signature match
+        const isStatTest = f.title.includes('entropy') || f.title.includes('Chi-square') || f.title.includes('RS detects');
+        if (isStatTest) {
+            const support = (tests.entropy?1:0) + (tests.chisquare?1:0) + (tests.rs?1:0);
+            if (support >= 2) { confirmedHigh++; return true; }
+            if (tests.strings) { confirmedHigh++; return true; }
+            // Downgrade if no support
+            f.severity = 'medium';
+            f.title = "[Ensemble Downgrade] " + f.title;
+            return true;
+        }
+        confirmedHigh++;
+        return true;
+    });
+
+    var html = '<div class="card"><h3><span class="dot dot-info"></span>Analysis Summary (FP-Killer Mode Active)</h3>';
+
+    var high = confirmedHigh;
+    var rawHigh = filteredFindings.filter(f => f.severity === 'high').length;
+    var med  = filteredFindings.filter(f => f.severity === 'medium').length;
+    var low  = filteredFindings.filter(f => f.severity === 'low').length;
+    var score = Math.min(100, high * 30 + med * 12 + low * 3);
+    var scoreColor = score > 60 ? 'var(--danger)' : score > 25 ? 'var(--warn)' : 'var(--ok)';
+    var scoreLabel = score > 60 ? 'High likelihood of hidden data' : score > 25 ? 'Some anomalies detected' : 'Image appears clean';
+    var circumference = 2 * Math.PI * 46;
+    var dashOffset = circumference * (1 - score / 100);
+
+    html += '<div style="text-align:center;margin:20px 0">';
+    html += '<div class="score-ring">';
+    html += '<svg width="110" height="110" viewBox="0 0 110 110">';
+    html += '<circle cx="55" cy="55" r="46" fill="none" stroke="var(--bg3)" stroke-width="6"/>';
+    html += '<circle cx="55" cy="55" r="46" fill="none" stroke="' + scoreColor + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" style="transition:stroke-dashoffset 1s ease"/>';
+    html += '</svg>';
+    html += '<div class="val" style="color:' + scoreColor + '">' + score + '</div>';
+    html += '</div>';
+    html += '<div style="font-size:13px;color:' + scoreColor + ';font-weight:600">' + scoreLabel + '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + high + ' high · ' + med + ' medium · ' + low + ' low severity findings</div>';
+    html += '</div></div>';
+
+    html += '<div class="card"><h3><span class="dot dot-info"></span>Detailed Findings (' + findings.length + ')</h3>';
+    if (findings.length === 0) {
+        html += '<div class="finding-item clean"><span class="finding-icon">✓</span><div class="finding-text"><strong>No anomalies detected</strong>The image appears clean of steganographic content.</div></div>';
+    } else {
+        var order = { high: 0, medium: 1, low: 2 };
+        findings.sort(function(a, b) { return order[a.severity] - order[b.severity]; });
+        for (var i = 0; i < findings.length; i++) {
+            var f = findings[i];
+            var icon = f.severity === 'high' ? '⚠' : f.severity === 'medium' ? '△' : 'ℹ';
+            html += '<div class="finding-item ' + f.severity + '"><span class="finding-icon">' + icon + '</span><div class="finding-text"><strong>' + esc(f.title) + '</strong>' + esc(f.detail) + '</div></div>';
+        }
+    }
+    html += '</div>';
+    return html;
+}
+
+console.log('MAD Checker ready.');
+</script>
+</body>
+</html>

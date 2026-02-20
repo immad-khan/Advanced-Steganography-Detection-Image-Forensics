@@ -47,9 +47,9 @@
 
 ## 🖥️ Live Demo
 
-> **Just open `steneography-checker.html` in any modern browser. That's it.**
+> **[Click here to use the tool online](https://immad-khan.github.io/Advanced-Steganography-Detection-Image-Forensics/steneography-checker.html)**
 
-No server. No install. No build step. Everything runs 100% client-side.
+Or simply open `steneography-checker.html` in any modern browser locally. No server, no install, no build step.
 
 ---
 
@@ -57,10 +57,11 @@ No server. No install. No build step. Everything runs 100% client-side.
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/steg.git
+git clone https://github.com/immad-khan/Advanced-Steganography-Detection-Image-Forensics.git
 
 # Navigate into the directory
-cd steg
+cd Advanced-Steganography-Detection-Image-Forensics
+
 
 # Open in your default browser
 start steneography-checker.html        # Windows
